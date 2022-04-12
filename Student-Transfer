@@ -1,0 +1,126 @@
+// Setting Global Variable(s)
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var dest_ss;
+  let sheet;
+  var tStudentData;
+  var studentDataColumn;
+  let tempData;
+  var firstDataRow; 
+  var lastDataRow;
+  var lastColumn;
+
+function TransferStudent() {
+   
+  let studentName;
+  let sourceSheet;
+  let destinationSheet;
+
+  dest_ss = SpreadsheetApp.openById(ss.getSheetByName("Data Checker").getRange("J4").getValue());
+
+  var valuesWithoutHeaders = ss.getRangeByName("Transfer_Parameters").getValues();
+
+  // Transfer happens here
+  valuesWithoutHeaders.forEach(function(value){
+    if(value[0] != ""){  
+    studentName = value [0];
+    sourceSheet = value [1];
+    destinationSheet = value [2];
+
+    getStudentDataRange(sourceSheet, studentName);
+    
+    updateSourceSheet(sourceSheet, studentName, studentDataColumn, firstDataRow, lastDataRow, lastColumn);
+
+    updateDestSheet(destinationSheet, studentName, tStudentData);
+    }
+  });
+}
+
+function getStudentDataRange(sourceSheet, studentName){
+
+  sheet = ss.getSheetByName(sourceSheet);
+  var Data_Range = sheet.getDataRange();
+  var lastRow = Data_Range.getLastRow();
+  lastColumn = Data_Range.getLastColumn();
+  var searchRow = sheet.getRange(5, 1, 1, lastColumn).getValues();
+
+  // Find the student's data column
+  for (var i = 0; i < lastColumn+1; i++){
+    if (searchRow[0][i] == studentName){
+      studentDataColumn = i+1;
+      break;
+    }
+  }  
+    
+  // Find first data row for student's data
+  tempData = sheet.getRange(6, studentDataColumn, lastRow).getValues();
+  for (let id = 0; id < lastRow; id++){
+    if (tempData[id][0] != "" || tempData[id][0] === 0){
+      firstDataRow = id+6;
+      break;
+    }
+  }
+
+  // Find last non empty row in the student's data
+  tempData = sheet.getRange(firstDataRow, studentDataColumn, lastRow).getValues();
+  for (id = tempData.length-1; id >= 0; id--){
+    if (tempData[id][0] != "" || tempData[id][0] === 0){
+      lastDataRow = id+1;
+      break;
+    }
+  }  
+
+  // Locate transfered student data from the Data Checker tab
+  var cTab = ss.getSheetByName("Data Checker");
+
+  console.log("firstDataRow: " + firstDataRow + " , studentColumn: " + studentDataColumn + " , lastDataRow: " + lastDataRow );
+
+  tStudentData = cTab.getRange(cTab.getRange("G4").getValue()).getValues();
+  
+  }
+
+function updateSourceSheet(sourceSheet, studentName, studentDataColumn, firstDataRow, lastDataRow, lastColumn){
+
+  sheet = ss.getSheetByName(sourceSheet);
+  
+  // Copies student data to the end of the sheet and format headers
+  var Data_Range = sheet.getRange(firstDataRow, studentDataColumn, lastDataRow);
+  var Header_Range = ss.getRangeByName("FTemplate_Inactive");
+
+  sheet.insertColumnAfter(lastColumn); 
+  Data_Range.copyTo(sheet.getRange(firstDataRow, lastColumn+1)); 
+  Header_Range.copyFormatToRange(sheet, lastColumn+1, lastColumn+1, 4, 5);
+  sheet.getRange(4, lastColumn+1).setValue(studentName);
+
+  // Deletes former student cell
+  sheet.deleteColumn(studentDataColumn);
+} 
+
+function updateDestSheet(destinationSheet, studentName, tStudentData){
+
+  var s_Sheet = ss.getSheetByName("Data Checker");
+  sheet = dest_ss.getSheetByName(destinationSheet);
+
+  var Data_Range = sheet.getDataRange();
+  var lastColumn = Data_Range.getLastColumn()-1;
+  var searchRow = sheet.getRange(5, 2, 1, lastColumn).getValues();
+  var inputColumn;
+
+  // Find the last empty data column and insert a column after
+  for (var i = 0; i < lastColumn; i++){
+    if (searchRow[0][i] === ""){
+      inputColumn = i+1;
+      break;
+    }
+  }  
+  
+  sheet.insertColumnAfter(inputColumn);
+  
+  // Paste student data to input column
+  sheet.getRange(6, inputColumn+1, tStudentData.length).setValues(tStudentData);
+  sheet.getRange(5, inputColumn+1).setValue(studentName);
+
+  // Format header
+  var Header_Range = dest_ss.getRangeByName("FTemplate_Transferee");
+
+  Header_Range.copyFormatToRange(sheet, inputColumn+1, inputColumn+1, 4, 5);
+}
