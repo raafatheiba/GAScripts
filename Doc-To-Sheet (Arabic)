@@ -1,0 +1,228 @@
+// Setting global variables
+var sDoc = DocumentApp.openByUrl("");
+var dss = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Output");
+let episode = [];
+let fSplit = [];
+let cSplit = [];
+let scene = [];
+let sceneC = 0;
+let rowC = 0;
+let cC = 0;
+
+function defineScene(){
+
+  sDoc.getBody().getParagraphs().forEach(function(value){
+    if((/\d/.test(value.getText()) && /[\\./–-]+/.test(value.getText()) && value.getAlignment()  == "RIGHT") || (/\d/.test(value.getText()) && /[\\./–-]+/.test(value.getText()) && value.getAlignment()  == "LEFT")){
+      dss.getRange(1+(rowC+=1), 6).setValue(engToAr(rowC.toString()));
+      if(/(?:^|\s)ليل(?:\s|$)/.test(value.getText())){
+        dss.getRange(1+rowC, 4).setValue("ل");
+        if(value.getText().replace(/[0-9./-_]/g, " ").split(/(?:^|\s)ليل(?:\s|$)/)[0] === " "){
+          fSplit.push([value.getText(), " "])
+        }else{
+          fSplit.push(value.getText().split(/(?:^|\s)ليل(?:\s|$)/));
+        } 
+      }else if(value.getText().includes("نهار")){
+        dss.getRange(1+rowC, 4).setValue("ن");
+        if(value.getText().replace(/[0-9./-_]/g, " ").split("نهار")[0] === " "){
+          fSplit.push([value.getText(), " "]);
+        }else{
+          fSplit.push(value.getText().split("نهار"));
+        } 
+      }else{
+        var tempString = [value.getText(), " "];
+        fSplit.push(tempString);
+      }
+
+      
+      if(value.getText().includes("داخلى") || value.getText().includes("داخلي")){
+        dss.getRange(1+rowC, 3).setValue("د");
+      }else if(value.getText().includes("خارجى") || value.getText().includes("خارجي")){
+        dss.getRange(1+rowC, 3).setValue("خ");
+      }
+    }
+
+    if((/\d/.test(value.getText()) && /[\\./–-]+/.test(value.getText()) && value.getAlignment()  == "RIGHT") || (value.getAlignment() == "CENTER" && value.editAsText().isBold() && value.getText().length <= 9) || (/\d/.test(value.getText()) && /[\\./–-]+/.test(value.getText()) && value.getAlignment()  == "LEFT")){
+      cSplit.push(value.getText().trim());
+    }
+
+    scene.push(value.getText().trim());
+
+    if(value.getAlignment() == "CENTER" && value.getText().includes("حلق") || (!isNaN(value.getText()) && value.getText()!="")){
+      episode.push(value.getText().trim()); 
+    }
+  });
+  for(let i = 0; i < cSplit.length; i++){
+      if((/\d/.test(cSplit[i]) && /[\\./–-]+/.test(cSplit[i])) || (cSplit[i].includes("م") && /\d/.test(cSplit[i])) && /[\\./–-]+/.test(cSplit[i])){
+      cSplit.splice(0, i); 
+      break;
+    }
+  }
+  for(i = 0; i < scene.length; i++){
+      if((/\d/.test(scene[i]) && /[\\./–-]+/.test(scene[i])) || (scene[i].includes("م") && /\d/.test(scene[i])) && /[\\./–-]+/.test(scene[i])){
+      scene.splice(0, i); 
+      break;
+    }
+  }
+
+  defineEpisode(episode);
+  defineSetting(fSplit);
+  defineCharacters(cSplit);
+  defineLength(scene);
+
+}
+
+function defineEpisode(episode){
+
+  for (let i = 0; i < episode.length; i++){
+    if(episode[i].includes("حلق") &&  episode[i].trim().split(" ")[1] != undefined && isNaN(episode[i].trim().split(" ")[1])){
+      for (let i1 = 0; i1 < rowC; i1++){
+        dss.getRange(2+i1, 7).setValue(episode[i].trim().split(" ")[1]); 
+      }
+      return;
+    }else if(!isNaN(episode[i])){
+      for (let i2 = 0; i2 < rowC; i2++){
+        dss.getRange(2+i2, 7).setValue(engToAr(episode[i].trim())); 
+      }
+      return;
+    }else if(!isNaN(episode[i].trim().split(" ")[1])){
+      for (let i3 = 0; i3 < rowC; i3++){
+        dss.getRange(2+i3, 7).setValue(engToAr(episode[i].trim().split(" ")[1])); 
+      }
+      return;
+    }
+  }
+}
+
+function defineSetting(fSplit){
+  
+  for (var i = 0; i < fSplit.length; i++){
+    if(fSplit[i][0].replace(/[0-9./-_]/g, " ").trim().charAt(0) === "م" && fSplit[i][0].replace(/[0-9./-_]/g, " ").trim().charAt(1) === " "){
+      dss.getRange(i+2, 2).setValue(fSplit[i][0].replace(/[0-9./]/g, " ").trim().substring(2));
+    
+    }else {
+      dss.getRange(i+2, 2).setValue(fSplit[i][0].replace(/[0-9./]/g, " ").trim());
+    }
+  }
+}
+
+function defineCharacters(cSplit) {
+
+    
+    if(cSplit[0] === undefined){
+      return;
+    }else if((/\d/.test(cSplit[0]) && /[\\.\/–-]+/.test(cSplit[0])) || (cSplit[0].includes("م") && /\d/.test(cSplit[0])) && /[\\.\/–-]+/.test(cSplit[0])){
+      cSplit.splice(0,1);
+      let cSplit1 = [... new Set(fillCharacters(cSplit))];
+      dss.getRange(2+cC, 1).setValue(cSplit1.join(", "));
+      cC++;
+    }
+    defineCharacters(cSplit);
+}
+
+function fillCharacters(cSplit){
+
+  let i = 0;
+  let cArray = [];
+  
+  while((!/\d/.test(cSplit[i]) && !/[\\]+/.test(cSplit[i]) && i < cSplit.length) || (!/\d/.test(cSplit[i]) && !/[.]+/.test(cSplit[i]) && i < cSplit.length) || (!/\d/.test(cSplit[i]) && !/[/]+/.test(cSplit[i]) && i < cSplit.length) || (!/\d/.test(cSplit[i]) && !/[–]+/.test(cSplit[i]) && i < cSplit.length) || (!/\d/.test(cSplit[i]) && !/[-]+/.test(cSplit[i]) && i < cSplit.length)){
+    cArray.push(cSplit[i].replace(/[0-9.:]/g, " ").trim());
+    i++;
+  }
+  cSplit.splice(0, cArray.length);
+  return cArray;
+}
+
+function defineLength(scene){
+  if(scene[0] === undefined){
+      return;
+    }else if((/\d/.test(scene[0]) && /[\\./–-]+/.test(scene[0])) || (scene[0].includes("م") && /\d/.test(scene[0])) && /[\\./–-]+/.test(scene[0])){
+      scene.splice(0,1);
+      let sceneLength = countScene(scene);
+      if(sceneLength >= 0 && sceneLength <= 10){
+        dss.getRange(2+sceneC, 5).setValue("٠.٢٥");
+      }else if(sceneLength >= 11 && sceneLength <= 18){
+        dss.getRange(2+sceneC, 5).setValue("٠.٥");
+      }else if(sceneLength >= 19 && sceneLength <= 25){
+        dss.getRange(2+sceneC, 5).setValue("٠.٧٥");
+      }else if(sceneLength >= 26 && sceneLength <= 33){
+        dss.getRange(2+sceneC, 5).setValue("١.");
+      }else if(sceneLength >= 34 && sceneLength <= 40){
+        dss.getRange(2+sceneC, 5).setValue("١.٢٥");
+      }else if(sceneLength >= 41 && sceneLength <= 48){
+        dss.getRange(2+sceneC, 5).setValue("١.٥");
+      }else if(sceneLength >= 49 && sceneLength <= 55){
+        dss.getRange(2+sceneC, 5).setValue("١.٧٥");
+      }else if(sceneLength >= 56 && sceneLength <= 63){
+        dss.getRange(2+sceneC, 5).setValue("٢.");
+      }else if(sceneLength >= 64 && sceneLength <= 70){
+        dss.getRange(2+sceneC, 5).setValue("٢.٢٥");
+      }else if(sceneLength >= 71 && sceneLength <= 78){
+        dss.getRange(2+sceneC, 5).setValue("٢.٥");
+      }else if(sceneLength >= 79 && sceneLength <= 85){
+        dss.getRange(2+sceneC, 5).setValue("٢.٧٥");
+      }else if(sceneLength >= 86 && sceneLength <= 93){
+        dss.getRange(2+sceneC, 5).setValue("٣.");
+      }else if(sceneLength >= 94 && sceneLength <= 100){
+        dss.getRange(2+sceneC, 5).setValue("٣.٢٥");
+      }else if(sceneLength >= 101 && sceneLength <= 108){
+        dss.getRange(2+sceneC, 5).setValue("٣.٥");
+      }else if(sceneLength >= 109 && sceneLength <= 115){
+        dss.getRange(2+sceneC, 5).setValue("٣.٧٥");
+      }else if(sceneLength >= 116 && sceneLength <= 123){
+        dss.getRange(2+sceneC, 5).setValue("٤.");
+      }else if(sceneLength >= 123 && sceneLength <= 130){
+        dss.getRange(2+sceneC, 5).setValue("٤.٢٥");
+      }else if(sceneLength >= 131 && sceneLength <= 138){
+        dss.getRange(2+sceneC, 5).setValue("٤.٥");
+      }else if(sceneLength >= 139 && sceneLength <= 145){
+        dss.getRange(2+sceneC, 5).setValue("٤.٧٥");
+      }else if(sceneLength >= 146 && sceneLength <= 153){
+        dss.getRange(2+sceneC, 5).setValue("٥.");
+      }else if(sceneLength >= 154 && sceneLength <= 160){
+        dss.getRange(2+sceneC, 5).setValue("٥.٢٥");
+      }else if(sceneLength >= 161 && sceneLength <= 168){
+        dss.getRange(2+sceneC, 5).setValue("٥.٥");
+      }else if(sceneLength >= 169 && sceneLength <= 175){
+        dss.getRange(2+sceneC, 5).setValue("٥.٧٥");
+      }else if(sceneLength >= 176 && sceneLength <= 183){
+        dss.getRange(2+sceneC, 5).setValue("٦.");
+      }else if(sceneLength >= 184 && sceneLength <= 190){
+        dss.getRange(2+sceneC, 5).setValue("٦.٢٥");
+      }else if(sceneLength >= 191 && sceneLength <= 198){
+        dss.getRange(2+sceneC, 5).setValue("٦.٥");
+      }else if(sceneLength >= 199 && sceneLength <= 205){
+        dss.getRange(2+sceneC, 5).setValue("٦.٧٥");
+      }else if(sceneLength >= 206 && sceneLength <= 213){
+        dss.getRange(2+sceneC, 5).setValue("٧.");
+      }else if(sceneLength >= 214){
+        dss.getRange(2+sceneC, 5).setValue("٧.+");
+      }
+      sceneC++;
+    }
+  defineLength(scene);
+}
+
+function countScene(scene){
+  let i = 0;
+  while((!/\d/.test(scene[i]) && !/[\\]+/.test(scene[i]) && i < scene.length) || (!/\d/.test(scene[i]) && !/[/]+/.test(scene[i]) && i < scene.length) || (!/\d/.test(scene[i]) && !/[–]+/.test(scene[i]) && i < scene.length) || (!/\d/.test(scene[i]) && !/[-]+/.test(scene[i]) && i < scene.length) || (/\d/.test(scene[i]) && !/[\\/–-]+/.test(scene[i]) && i < scene.length)){
+    i++;
+  }
+  scene.splice(0, i);
+  return i;
+}
+
+function engToAr(number){
+
+  number = number.replace(/0/gi,"٠");
+	number = number.replace(/1/gi,"١");
+	number = number.replace(/2/gi,"٢");
+	number = number.replace(/3/gi,"٣");
+	number = number.replace(/4/gi,"٤");
+	number = number.replace(/5/gi,"٥");
+	number = number.replace(/6/gi,"٦");
+	number = number.replace(/7/gi,"٧");
+	number = number.replace(/8/gi,"٨");
+	number = number.replace(/9/gi,"٩");
+
+  return number;
+}
