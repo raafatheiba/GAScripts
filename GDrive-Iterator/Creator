@@ -1,0 +1,22 @@
+function getFiles() {
+  var folders = DriveApp.getFolders();
+  while (folders.hasNext()) {
+  var folder = folders.next();
+    if(folder.getName() === "King"){
+      var files = folder.getFiles();
+      while (files.hasNext()) {
+        var file = files.next();
+        var sDoc = DocumentApp.openById(file.getId());
+        var nfolder = folder.createFolder("Scene Data");
+        var resource = {
+            title: file.getName(),
+            mimeType: MimeType.GOOGLE_SHEETS,
+            parents: [{ id: nfolder.getId() }]
+          }
+        var fileJson = Drive.Files.insert(resource);
+        var s_File = SpreadsheetApp.openById(fileJson.id);
+        var ss = s_File.getSheets()[0];
+      } 
+    }
+  } 
+}
