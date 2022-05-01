@@ -1,0 +1,79 @@
+var ss = SpreadsheetApp.openById("").getSheetByName("Sheet4");
+var dss = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Attendance Main"); 
+let i = 2;
+let attendees;
+let cEndRow;
+let c_Name;
+let c_startTime;
+let c_endTime;
+let c_duration;
+let s_Name;
+let s_Names;
+let s_Attendance;
+let s_Column;
+let s_Row;
+let days;
+let day;
+
+
+function defineAttendees() {
+
+  for (i; i <= ss.getDataRange().getLastRow(); i++){
+    if(ss.getRange(i, 1).getDisplayValue() != ss.getRange(i-1, 1).getDisplayValue() && ss.getRange(i, 2).getDisplayValue() != ss.getRange(i-1, 2).getDisplayValue()){
+      c_Name = ss.getRange(i, 1).getDisplayValue().trim();
+      c_startTime = ss.getRange(i, 2).getDisplayValue();
+      c_endTime = ss.getRange(i, 3).getDisplayValue();
+    
+      c_duration = (new Date(c_endTime).getTime() - new Date(c_startTime).getTime())/3600000;
+      
+      for(let i2 = i+1; i<ss.getDataRange().getLastRow(); i2++){
+        if(ss.getRange(i2, 1).getDisplayValue() != ss.getRange(i2-1, 1).getDisplayValue() && ss.getRange(i2, 2).getDisplayValue() != ss.getRange(i2-1, 2).getDisplayValue()){
+          cEndRow = i2;
+          break;
+        }
+      }
+
+      attendees = ss.getRange(i, 4, cEndRow-i, 4).getDisplayValues();
+      
+      for(let r = 0; r<attendees.length; r++){
+        for(let c = 0; c<attendees[0].length; c++){
+          if(c === 0){
+            s_Name = attendees[r][c];
+          }
+          if(c === 3){
+            s_Attendance = attendees[r][c];
+          }
+        }
+       
+        if(s_Attendance === "arrived"){
+          
+        s_Names = dss.getRange(7, 1, dss.getDataRange().getLastRow()).getValues();
+
+        for(let i3 = 0; i3<s_Names.length; i3++){
+          if(s_Names[i3][0] === s_Name){
+          s_Row = i3+8;
+          }
+        }
+
+        days = dss.getRange(3, 9, 1, dss.getDataRange().getLastColumn()).getValues();
+
+        day = Utilities.formatDate(new Date(c_startTime),"GMT+2", "yyyy-MM-dd");
+
+        for(i3 = 0; i3<days[0].length;i3++){
+        if(Utilities.formatDate(new Date(days[0][i3]), "GMT+8", "yyyy-MM-dd") === day){
+        s_Column = i3+9;
+        }
+        }
+
+        dss.getRange(s_Row, s_Column)
+        .setValue(dss.getRange(s_Row, s_Column).getValue()+c_duration)
+        .setBackground("white") 
+        .setFontSize(6)
+        .setFontWeight("bold")
+        .setFontColor("#666666");
+                
+      } 
+      }    
+    }
+  } 
+}
